@@ -1,17 +1,15 @@
-from repository_analysis.code_parser import extract_python_structure
+from repository_analysis.dependency_graph import build_dependency_graph
 
-file_path = "repos/fastapi/fastapi/applications.py"
+repo_path = "repos/fastapi"
 
-result = extract_python_structure(file_path)
+graph = build_dependency_graph(repo_path)
 
-print("\nFunctions:")
-for func in result["functions"]:
-    print(f"  - {func}")
+for file, imports in list(graph.items())[:5]:
 
-print("\nClasses:")
-for cls in result["classes"]:
-    print(f"  - {cls}")
+    print("\nFile:")
+    print(file)
 
-print("\nImports:")
-for imp in result["imports"]:
-    print(f"  - {imp}")
+    print("Imports:")
+
+    for imp in imports:
+        print(f"  - {imp}")
