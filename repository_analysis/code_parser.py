@@ -8,20 +8,30 @@ def extract_python_structure(file_path):
 
         tree = ast.parse(source)
 
-        functions = []
-        classes = []
+        functions = set()
+        classes = set()
+        imports = set()
 
         for node in ast.walk(tree):
 
             if isinstance(node, ast.FunctionDef):
-                functions.append(node.name)
+                functions.add(node.name)
 
             elif isinstance(node, ast.ClassDef):
-                classes.append(node.name)
+                classes.add(node.name)
+
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    imports.add(alias.name)
+
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    imports.add(node.module)
 
         return {
-            "functions": functions,
-            "classes": classes
+            "functions": sorted(list(functions)),
+            "classes": sorted(list(classes)),
+            "imports": sorted(list(imports))
         }
 
     except Exception as e:
