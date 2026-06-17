@@ -1,10 +1,8 @@
-from repository_analysis.repo_loader import clone_repository
-from repository_analysis.file_scanner import scan_repository
+from repository_analysis.code_parser import extract_python_structure
 
-repo_url = "https://github.com/tiangolo/fastapi"
+file_path = "repos/fastapi/fastapi/applications.py"
 
-repo_path = clone_repository(repo_url)
+result = extract_python_structure(file_path)
 
-summary = scan_repository(repo_path)
-
-print(summary)
+print("\nCode Structure\n")
+print(result)
