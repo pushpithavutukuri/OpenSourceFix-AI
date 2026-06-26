@@ -13,6 +13,13 @@ llm:
   model: gemini-1.5-flash
   base_url: ""                    # only for openai_compatible backend
 
+retrieval:
+  cache_dir: .retrieval_cache     # where FAISS index is persisted
+  model: BAAI/bge-small-en-v1.5  # bge-small (fast) | bge-base | bge-large
+  device: cpu                     # cpu | cuda
+  chunk_top_k: 30                 # chunks retrieved per query
+  max_files: 10                   # max ranked files returned
+
 bug_localization:
   top_n: 5                        # number of primary suspect files
 

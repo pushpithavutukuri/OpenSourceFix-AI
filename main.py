@@ -1,14 +1,17 @@
 """
-OpenSourceFix AI
+main.py
+Entry point for the OpenSourceFix AI pipeline.
 
-Autonomous Open-Source Issue Resolution Agent.
+Usage:
+    python main.py \
+        --repo  https://github.com/tiangolo/fastapi \
+        --owner tiangolo \
+        --repo-name fastapi \
+        --issue 1234
 
-Main pipeline for repository analysis, issue understanding,
-bug localization, and AI-assisted fix generation.
-
-Authors:
-Pushpitha Vutukuri
-Keerthika Muddada
+The pipeline runs end-to-end:
+    Clone → Index → Fetch Issue → Extract Keywords → Rank Files
+    → Localize Bug → Generate Fix
 """
 
 import argparse
@@ -23,6 +26,7 @@ from repository_analysis import RepoLoader, RepositoryIndexer, FileRanker
 from issue_analysis import IssueFetcher, KeywordExtractor
 from bug_localization import BugLocalizer
 from fix_generation.fix_generator import FixGenerator
+from retrieval import RetrievalPipeline
 
 
 def parse_args() -> argparse.Namespace:
@@ -67,16 +71,23 @@ def main() -> None:
     issue = fetcher.fetch(args.owner, args.repo_name, args.issue)
     print(f"      Issue: {issue.title}")
 
-    # ── 4. Extract keywords ────────────────────────────────────────────────
-    print("[4/6] Extracting keywords...")
-    extractor = KeywordExtractor()
-    keywords = extractor.extract(issue)
-    print(f"      Keywords: {keywords[:10]}")
+    # ── 4. Build semantic retrieval index (BGE + FAISS) ───────────────────
+    print("[4/6] Building semantic retrieval index (BGE embeddings + FAISS)...")
+    retrieval = RetrievalPipeline(
+        cache_dir=cfg.get("retrieval", {}).get("cache_dir", ".retrieval_cache"),
+        model_name=cfg.get("retrieval", {}).get("model", "BAAI/bge-small-en-v1.5"),
+        device=cfg.get("retrieval", {}).get("device", "cpu"),
+    )
+    retrieval.build(index, repo_path)
+    stats = retrieval.stats()
+    print(f"      Index ready — {stats.get('total_chunks', 0)} chunks, "
+          f"{stats.get('unique_files', 0)} files.")
 
-    # ── 5. Rank files + localize bug ───────────────────────────────────────
-    print("[5/6] Ranking files and localizing bug...")
-    ranker = FileRanker()
-    ranked = ranker.rank(index, keywords)
+    # ── 5. Semantic ranking + bug localization ─────────────────────────────
+    print("[5/6] Ranking files semantically and localizing bug...")
+    ranker = retrieval.get_ranker()
+    semantic_results = ranker.rank(issue)
+    ranked = [(r.file_path, r.score) for r in semantic_results]
 
     localizer = BugLocalizer(top_n=cfg["bug_localization"]["top_n"])
     localization = localizer.localize(ranked, dep_graph, index)
