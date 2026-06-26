@@ -1,0 +1,21 @@
+# config/config.yaml
+# Central configuration for OpenSourceFix AI
+
+repo:
+  base_dir: cloned_repos          # where repositories are cloned
+
+github:
+  token: ""                       # set via GITHUB_TOKEN env var or here
+
+llm:
+  backend: gemini                 # gemini | openai_compatible
+  api_key: ""                     # set via GEMINI_API_KEY env var or here
+  model: gemini-1.5-flash
+  base_url: ""                    # only for openai_compatible backend
+
+bug_localization:
+  top_n: 5                        # number of primary suspect files
+
+logging:
+  level: INFO
+  log_file: logs/app.log
