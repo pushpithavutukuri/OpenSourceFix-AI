@@ -42,3 +42,15 @@ utils/                 # config, logging, LLM adapters
 config/                # config.yaml
 tests/                 # pytest unit tests
 ```
+repository_analysis/   # Clone, scan, parse, index, and analyze repository structure
+issue_analysis/        # Fetch GitHub issue, parse description, extract keywords
+retrieval/             # Generate embeddings, build FAISS index, semantic search
+bug_localization/      # Rank and identify probable buggy files
+fix_generation/        # Generate repository-aware code fixes using LLM
+validation/            # Run pytest, validate generated fixes, create feedback
+workflow/              # LangGraph orchestration of all AI agents
+pr_generator/          # Generate GitHub-style Pull Request summaries
+utils/                 # Configuration, logging, LLM adapters
+config/                # config.yaml
+tests/                 # Pytest unit tests
+```
