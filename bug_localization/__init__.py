@@ -1,3 +1,2 @@
-from bug_localization.bug_localizer import BugLocalizer, BugLocalization
-
-__all__ = ["BugLocalizer", "BugLocalization"]
+from .bug_localizer import BugLocalizer, BugLocalization
+from .function_localizer import FunctionLocalizer, FunctionLocation
