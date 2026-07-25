@@ -1,0 +1,11 @@
+[
+    {
+        "repo_url":          "https://github.com/pallets/flask",
+        "owner":             "pallets",
+        "repo_name":         "flask",
+        "issue_number":      4556,
+        "correct_file":      "src/flask/sessions.py",
+        "correct_function":  "open_session",
+        "notes":             "Session cookie not set when SECRET_KEY changes"
+    }
+]
