@@ -46,9 +46,15 @@ class PatchGenerator:
         self.max_retries = max_retries
         self.validator = DiffValidator()
 
-    def generate(self, issue, location: FunctionLocation, index: dict) -> PatchResult:
+    def generate(
+    self,
+    issue,
+    location: FunctionLocation,
+    index: dict,
+    extra_context: str = "",
+) -> PatchResult:
         source = self._load_source(location, index)
-        feedback = None
+        feedback = extra_context if extra_context else None
         diff = ""
         explanation = ""
         val = None
