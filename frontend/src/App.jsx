@@ -1,81 +1,116 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import IssueForm from "./components/IssueForm";
 import PipelineProgress from "./components/PipelineProgress";
 import ResultPanel from "./components/ResultPanel";
 import axios from "axios";
 
 export default function App() {
-  const [runId, setRunId] = useState(null);
-  const [status, setStatus] = useState(null);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState("");
-  const [polling, setPolling] = useState(false);
+  const [status, setStatus]   = useState(null);
+  const [result, setResult]   = useState(null);
+  const [error, setError]     = useState("");
+  const [running, setRunning] = useState(false);
+  const intervalRef = useRef(null);
 
-  async function handleSubmit(formData) {
-    setError("");
-    setResult(null);
-    setStatus(null);
-
-    try {
-      const res = await axios.post("/api/run", formData);
-      const id = res.data.run_id;
-      setRunId(id);
-      startPolling(id);
-    } catch (e) {
-      setError(e.response?.data?.detail || "Failed to start run.");
+  function stopPolling() {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
   }
 
-  function startPolling(id) {
-    setPolling(true);
-    const interval = setInterval(async () => {
+  function reset() {
+    stopPolling();
+    setStatus(null);
+    setResult(null);
+    setError("");
+    setRunning(false);
+  }
+
+  async function handleSubmit(formData) {
+    reset();
+    setRunning(true);
+
+    let runId;
+    try {
+      const res = await axios.post("/api/run", formData);
+      runId = res.data.run_id;
+    } catch (e) {
+      setError(e.response?.data?.detail || "Could not connect to the server.");
+      setRunning(false);
+      return;
+    }
+
+    intervalRef.current = setInterval(async () => {
       try {
-        const res = await axios.get(`/api/run/${id}`);
+        const res = await axios.get(`/api/run/${runId}`);
         setStatus(res.data);
 
         if (res.data.overall === "done") {
-          clearInterval(interval);
-          setPolling(false);
-          const r = await axios.get(`/api/run/${id}/result`);
-          setResult(r.data);
+          stopPolling();
+          setRunning(false);
+          const r = await axios.get(`/api/run/${runId}/result`);
+          // Server returns {pending: true} if not done yet — shouldn't happen here but guard anyway
+          if (!r.data.pending) {
+            setResult(r.data);
+          }
         } else if (res.data.overall === "failed") {
-          clearInterval(interval);
-          setPolling(false);
+          stopPolling();
+          setRunning(false);
           setError(res.data.error || "Pipeline failed.");
         }
       } catch (e) {
-        clearInterval(interval);
-        setPolling(false);
-        setError("Lost connection to server.");
+        stopPolling();
+        setRunning(false);
+        setError("Lost connection to the server.");
       }
     }, 1500);
   }
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-mono">
-      {/* Header */}
-      <header className="border-b border-gray-800 px-8 py-5">
-        <div className="max-w-5xl mx-auto flex items-center gap-3">
-          <span className="text-2xl">🔧</span>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">OpenSourceFix AI</h1>
-            <p className="text-xs text-gray-500">Paste a GitHub issue. Get a patch.</p>
+      <header className="border-b border-gray-800 px-4 sm:px-8 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🔧</span>
+            <div>
+              <h1 className="text-base sm:text-lg font-semibold tracking-tight">
+                OpenSourceFix AI
+              </h1>
+              <p className="text-xs text-gray-500 hidden sm:block">
+                Paste a GitHub issue URL. Get a patch.
+              </p>
+            </div>
           </div>
+          {/* Show a reset button once a run finishes */}
+          {!running && (status || result) && (
+            <button
+              onClick={reset}
+              className="text-xs text-gray-500 hover:text-gray-300 transition-colors px-3 py-1.5 rounded border border-gray-800 hover:border-gray-700"
+            >
+              New run
+            </button>
+          )}
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-8 py-10 space-y-8">
-        <IssueForm onSubmit={handleSubmit} disabled={polling} />
+      <main className="max-w-4xl mx-auto px-4 sm:px-8 py-8 space-y-6">
+        {/* Hide the form while running or after a result comes in */}
+        {!running && !result && !status && (
+          <IssueForm onSubmit={handleSubmit} disabled={false} />
+        )}
+        {running && !status && (
+          <IssueForm onSubmit={handleSubmit} disabled={true} />
+        )}
 
         {error && (
-          <div className="bg-red-950 border border-red-800 text-red-300 rounded-lg px-4 py-3 text-sm">
-            {error}
+          <div className="bg-red-950 border border-red-800 text-red-300 rounded-lg px-4 py-3 text-sm flex items-start gap-2">
+            <span className="flex-shrink-0 mt-0.5">✗</span>
+            <span>{error}</span>
           </div>
         )}
 
         {status && <PipelineProgress status={status} />}
-
-        {result && <ResultPanel result={result} />}
+        {result  && <ResultPanel result={result} />}
       </main>
     </div>
   );
