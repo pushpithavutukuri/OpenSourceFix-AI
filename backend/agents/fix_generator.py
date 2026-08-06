@@ -1,22 +1,26 @@
+import json
 import os
-from typing import List, Dict
+from typing import List
 
 import google.generativeai as genai
 
+from models.schemas import (
+    IssueData,
+    IssueAnalysis,
+    CodeChunk,
+    FilePatch,
+    FixResult
+)
+
 
 class FixGenerator:
-    """
-    Generates repository-aware code fixes using Gemini.
-    """
 
     def __init__(self):
 
         api_key = os.getenv("GEMINI_API_KEY")
 
         if not api_key:
-            raise ValueError(
-                "GEMINI_API_KEY not found."
-            )
+            raise ValueError("GEMINI_API_KEY not found.")
 
         genai.configure(api_key=api_key)
 
@@ -26,111 +30,114 @@ class FixGenerator:
 
     def generate_fix(
         self,
-        issue: Dict,
-        analysis: Dict,
-        retrieved_chunks: List[Dict]
-    ):
+        issue: IssueData,
+        analysis: IssueAnalysis,
+        retrieved_chunks: List[CodeChunk]
+    ) -> FixResult:
 
-        code_context = ""
+        context = ""
 
         for chunk in retrieved_chunks:
 
-            code_context += f"""
+            context += f"""
 
 FILE:
-{chunk['path']}
+{chunk.path}
 
 CODE:
 
-{chunk['text']}
+{chunk.text}
 
-==================================================
+====================================================
 """
 
         prompt = f"""
-You are an experienced software engineer.
+You are an expert software engineer.
+
+GitHub Issue
+
+Title:
+{issue.title}
+
+Description:
+{issue.body}
+
+Problem Summary:
+{analysis.problem_summary}
+
+Possible Root Causes:
+{analysis.possible_root_causes}
+
+Implementation Steps:
+{analysis.implementation_steps}
 
 Repository Context:
 
-{code_context}
+{context}
 
-Issue Title:
+Return ONLY valid JSON.
 
-{issue['title']}
+Example:
 
-Issue Description:
-
-{issue['body']}
-
-Issue Analysis:
-
-Problem Summary:
-{analysis['problem_summary']}
-
-Possible Root Causes:
-{analysis['possible_root_causes']}
-
-Implementation Steps:
-{analysis['implementation_steps']}
-
-Generate:
-
-1. Files that should change.
-
-2. Updated code.
-
-3. Explanation.
-
-4. Potential risks.
-
-Return Markdown only.
-
+{{
+  "explanation":"...",
+  "risks":[
+      "...",
+      "..."
+  ],
+  "patches":[
+      {{
+        "path":"src/auth.py",
+        "old_code":"...",
+        "new_code":"..."
+      }}
+  ]
+}}
 """
 
-        response = self.model.generate_content(prompt)
+        response = self.model.generate_content(
+            prompt
+        )
 
-        return response.text
+        text = response.text.strip()
 
+        if text.startswith("```json"):
+            text = text.replace(
+                "```json",
+                ""
+            )
 
-if __name__ == "__main__":
+            text = text.replace(
+                "```",
+                ""
+            )
 
-    issue = {
-        "title": "Fix login failure",
-        "body": "Session expires unexpectedly."
-    }
+        data = json.loads(text)
 
-    analysis = {
-        "problem_summary":
-        "Expired session causes authentication failure.",
+        patches = []
 
-        "possible_root_causes": [
-            "Missing session validation"
-        ],
+        for patch in data["patches"]:
 
-        "implementation_steps": [
-            "Check session before login"
-        ]
-    }
+            patches.append(
 
-    retrieved_chunks = [
+                FilePatch(
 
-        {
-            "path": "auth.py",
-            "text":
-            """
-def login():
-    pass
-"""
-        }
+                    path=patch["path"],
 
-    ]
+                    old_code=patch["old_code"],
 
-    generator = FixGenerator()
+                    new_code=patch["new_code"]
 
-    fix = generator.generate_fix(
-        issue,
-        analysis,
-        retrieved_chunks
-    )
+                )
 
-    print(fix)
+            )
+
+        return FixResult(
+
+            explanation=data["explanation"],
+
+            risks=data["risks"],
+
+            patches=patches
+
+        )
