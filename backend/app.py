@@ -19,6 +19,6 @@ print(f"Chunks: {len(chunks)}")
 
 embeddings = generate_embeddings(chunks)
 
-build_faiss_index(embeddings)
+build_faiss_index(embeddings, chunks)
 
 print("Repository indexed successfully!")
